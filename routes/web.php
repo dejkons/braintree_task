@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
 
     Route::any('/dashboard', [BraintreeController::class, 'getPlans'])->name('dashboard');
     Route::any('/payment/{nonce}/{selectedPlan}', [BraintreeController::class, 'makeTransaction'])->name('payment.transaction');
+    Route::get('/profile/getToken/token', [BraintreeController::class, 'getClientToken'])->name('profile.token');
 });
 
 require __DIR__.'/auth.php';

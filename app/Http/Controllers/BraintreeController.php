@@ -27,8 +27,8 @@ class BraintreeController extends Controller
     }
 
     /**
-    * Get client token, central piece to call other stuff
-    */
+     * Get client token, central piece to call other stuff
+     */
     public function getClientToken(Request $request): string
     {
         return BraintreeController::getGateway($request)->clientToken()->generate();
@@ -63,6 +63,18 @@ class BraintreeController extends Controller
     }
 
     /**
+     * Add customer to Braintree vault
+     */
+    public function addCustomer(Request $request, $nonceFromTheClient) {
+        return BraintreeController::getGateway($request)->customer()->create([
+            'firstName' => BraintreeController::split_name($request->user()->name)[0],
+            'lastName' => BraintreeController::split_name($request->user()->name)[1],
+            'id' => BraintreeController::constructCustomerId($request),
+            'paymentMethodNonce' => $nonceFromTheClient
+        ]);
+    }
+
+    /**
      * Simple check is customer anywhere subscribed?
      */
     public function isCustomerSubscribed(Request $request) {
@@ -86,6 +98,13 @@ class BraintreeController extends Controller
     }
 
     /**
+     * Method which constructs customer ID
+     */
+    private function constructCustomerId(Request $request) {
+        return $request->user()->id."_".str_replace(' ', '', strtolower($request->user()->name));
+    }
+
+    /**
      * Return customer from Braintree vault
      */
     public function getCustomerFromVault(Request $request): bool|\Braintree\Customer
@@ -95,6 +114,54 @@ class BraintreeController extends Controller
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * At the moment just placeholder for more complex method, for now proxy for calling subscription
+     */
+    public function makeTransaction(Request $request, $nonceFromTheClient, $selectedPlan) {
+        return BraintreeController::makeSubscription($request, $nonceFromTheClient, $selectedPlan);
+    }
+
+    /**
+     * Method for calling subscription based on selected plan
+     */
+    public function makeSubscription(Request $request, $nonceFromTheClient, $selectedPlan) {
+
+        //return BraintreeController::addCustomer($request, $nonceFromTheClient);
+        $currentCustomer = BraintreeController::getCustomerFromVault($request);
+        if (!$currentCustomer) {
+            // customer is not registered in vault at all, register customer
+            BraintreeController::addCustomer($request, $nonceFromTheClient);
+            // customer is in the vault, check is subscribed
+            $currentCustomer = BraintreeController::getCustomerFromVault($request);
+        }
+
+        // if not subscribed, subscribe it
+        $cards = $currentCustomer->creditCards;
+        $paymentToken = "";
+
+        if (sizeof($cards) > 0) {
+            $paymentToken = $cards[0]->token;
+        }
+
+        BraintreeController::getGateway($request)->subscription()->create([
+            'paymentMethodToken' => $paymentToken,
+            'planId' => $selectedPlan
+        ]);
+
+        return "Successful subscription";
+
+    }
+
+    /**
+     * Helper method to handle split of [name lastname] => [name][lastname]
+     */
+    private function split_name($name) {
+        $name = trim($name);
+        $last_name = (strpos($name, ' ') === false) ? '' : preg_replace('#.*\s([\w-]*)$#', '$1', $name);
+        $first_name = trim( preg_replace('#'.preg_quote($last_name,'#').'#', '', $name ) );
+        return array($first_name, $last_name);
     }
 
 }
