@@ -1,3 +1,4 @@
+import PrimaryButton from '@/Components/PrimaryButton';
 import BraintreeDropIn from "@/Components/BraintreeDropIn";
 import {useState} from "react";
 
@@ -9,20 +10,28 @@ export default function UpdateSubscriptionForm({ className, selectedPlan, client
         setShowBraintreeDropIn(false);
     };
 
+    const cancelSubscription = () => {
+        axios.get(route('subscription.cancel')).then(() => {
+            window.location.replace("/profile");
+        });
+    };
+
     let res = "";
 
     if (!isSubscribed) {
         res = <div>
-                    <div className="subscriptionSelection bg-slate-100 mt-5 mb-5 p-10">
-                        <p>Subscription title: {selectedPlan.name}</p>
-                        <p>Subscription amount: {selectedPlan.price} {selectedPlan.currencyIsoCode}</p>
-                    </div>
-                    <BraintreeDropIn show={showBraintreeDropIn}
-                                     onPaymentCompleted={methodCompleted}
-                                     selectedPlan={selectedPlan}
-                                     clientToken={clientToken}
-                    />
-              </div>;
+            <div className="subscriptionSelection bg-slate-100 mt-5 mb-5 p-10">
+                <p>Subscription title: {selectedPlan.name}</p>
+                <p>Subscription amount: {selectedPlan.price} {selectedPlan.currencyIsoCode}</p>
+            </div>
+            <BraintreeDropIn show={showBraintreeDropIn}
+                             onPaymentCompleted={methodCompleted}
+                             selectedPlan={selectedPlan}
+                             clientToken={clientToken}
+            />
+        </div>;
+    } else {
+        res = <div><PrimaryButton className={"mt-5"} onClick={cancelSubscription} type={"submit"} >Cancel Subscription</PrimaryButton></div>
     }
 
     return (

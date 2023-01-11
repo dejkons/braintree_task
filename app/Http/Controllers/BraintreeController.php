@@ -98,6 +98,31 @@ class BraintreeController extends Controller
     }
 
     /**
+     * Simple cancel of any active subscription
+     */
+    public function cancelActiveSubscription(Request $request) {
+        $currentCustomer = BraintreeController::getCustomerFromVault($request);
+        if ($currentCustomer) {
+            // customer is in the vault, check is subscribed
+            $cards = $currentCustomer->creditCards;
+            if (sizeof($cards) > 0) {
+                foreach ($cards as $card) {
+                    if (sizeof($card->subscriptions) > 0) {
+                        foreach ($card->subscriptions as $subscription) {
+                            if ($subscription->status == "Active") {
+                                BraintreeController::getGateway($request)->subscription()->cancel($subscription->id);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Method which constructs customer ID
      */
     private function constructCustomerId(Request $request) {
